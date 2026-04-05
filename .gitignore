@@ -31,7 +31,12 @@
 *.out
 *.app
 
+# Visual Studio
 *.slnx
 *.vcxproj*
 .vs
 x64
+
+#Qt
+*pro.user
+build
