@@ -5,8 +5,10 @@
 #include <QMessageBox>
 #include <QFileInfo>
 #include <QString>
+#include <QFile>
+#include <QByteArray>
+#include <QDir>
 
-#include <fstream>
 #include <sstream>
 #include <stdexcept>
 
@@ -15,15 +17,20 @@
 
 namespace {
 
+std::string ToUtf8(const QString& s) {
+    QByteArray bytes = s.toUtf8();
+    return std::string(bytes.constData(), bytes.size());
+}
+
 json::Document BuildRequestsDocument(const QString& request_type, const QString& request_name) {
     json::Array stat_requests;
     json::Dict request;
 
     request["id"] = 1;
-    request["type"] = request_type.toStdString();
+    request["type"] = ToUtf8(request_type);
 
     if (request_type == "Stop" || request_type == "Bus") {
-        request["name"] = request_name.toStdString();
+        request["name"] = ToUtf8(request_name);
     }
 
     stat_requests.emplace_back(std::move(request));
@@ -34,12 +41,23 @@ json::Document BuildRequestsDocument(const QString& request_type, const QString&
     return json::Document(std::move(root));
 }
 
+std::string LoadFileToString(const QString& file_path) {
+    QFile file(file_path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        throw std::runtime_error("Не удалось открыть входной файл");
+    }
+
+    QByteArray data = file.readAll();
+    return std::string(data.constData(), data.size());
+}
+
 void SaveTextToFile(const QString& file_path, const std::string& text) {
-    std::ofstream out(file_path.toStdString(), std::ios::binary);
-    if (!out) {
+    QFile file(file_path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         throw std::runtime_error("Не удалось открыть выходной файл");
     }
-    out << text;
+
+    file.write(text.data(), static_cast<qint64>(text.size()));
 }
 
 std::string DocumentToString(const json::Document& doc) {
@@ -79,12 +97,8 @@ void MainWindow::on_browseInputButton_clicked() {
     }
 
     try {
-        std::ifstream input(file_name.toStdString(), std::ios::binary);
-        if (!input) {
-            QMessageBox::critical(this, "Ошибка", "Не удалось открыть файл с данными.");
-            return;
-        }
-
+        std::string file_content = LoadFileToString(file_name);
+        std::istringstream input(file_content);
         json::Document base_doc = json::Load(input);
 
         // Дозагрузка в существующий каталог
