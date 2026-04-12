@@ -195,7 +195,10 @@ namespace svg {
 
     void Document::Render(std::ostream& out) const {
         out << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"sv;
-        out << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"sv;
+        out << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\""sv
+            << " width=\""sv << width_ << "\""sv
+            << " height=\"" << height_ << "\""
+            << " viewBox=\"0 0 "sv << width_ << " "sv << height_ << "\">\n"sv;
 
         RenderContext ctx(out, 2, 2);  // отступ 2 пробела
 
@@ -204,6 +207,11 @@ namespace svg {
         }
 
         out << "</svg>"sv << std::endl;
+    }
+
+    void Document::SetSize(double width, double height) {
+        width_ = width;
+        height_ = height;
     }
 
     void Document::AddPtr(std::unique_ptr<Object>&& obj) {

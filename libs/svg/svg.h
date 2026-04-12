@@ -249,7 +249,12 @@ namespace svg {
         // Выводит в ostream svg-представление документа
         void Render(std::ostream& out) const;
 
+        // Устанавливает размер svg-файла
+        void SetSize(double width, double height);
+
     private:
+        double width_  = 100;
+        double height_ = 100;
         std::vector<std::unique_ptr<Object>> objects_;
     };
 

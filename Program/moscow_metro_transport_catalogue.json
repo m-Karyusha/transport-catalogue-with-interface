@@ -1905,8 +1905,8 @@
     }
   ],
   "render_settings": {
-    "width": 1200,
-    "height": 2600,
+    "width": 1400,
+    "height": 700,
     "padding": 60,
     "stop_radius": 1,
     "line_width": 2,

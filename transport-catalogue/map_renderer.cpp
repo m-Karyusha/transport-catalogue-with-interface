@@ -383,6 +383,8 @@ namespace renderer {
 
     svg::Document MapRenderer::Render(const std::vector<const domain::Bus*>& buses) const {
         svg::Document doc;
+        // Установить размер svg-документа
+        doc.SetSize(settings_.width, settings_.height);
 
         const detail::SphereProjector projector = detail::MakeProjector(buses, settings_);
         const detail::StopPoints stop_points = detail::PrepareStopPoints(buses, projector);
