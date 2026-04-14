@@ -107,6 +107,32 @@ namespace tc {
         }
     }
 
+    void JsonReader::LoadStopMerges(const json::Array &base_requests) {
+        for (const auto& request_node : base_requests) {
+            const auto& request = request_node.AsMap();
+
+            if (GetString(request, "type") != "StopMerge") {
+                continue;
+            }
+
+            domain::StopMergeRequest merge_req;
+            merge_req.merged_name = GetString(request, "name");
+
+            // Загружаем список остановок
+            const auto& stops_array = GetArray(request, "stops");
+            for (const auto& stop_node : stops_array) {
+                merge_req.stops.push_back(stop_node.AsString());
+            }
+
+            // Флаг объединения координат (по умолчанию true)
+            if (request.count("combine_coords")) {
+                merge_req.combine_coords = GetBool(request, "combine_coords");
+            }
+
+            catalogue_.AddStopMergeRequest(merge_req);
+        }
+    }
+
     // ===================================
     // Формирование JSON-ответов
     // ===================================
@@ -231,6 +257,10 @@ namespace tc {
         LoadDistances(distances);
         // 3 — маршруты
         LoadBuses(base_requests);
+        // 4 — объединения остановок
+        LoadStopMerges(base_requests);
+        // 5 — применяем объединения
+        catalogue_.ApplyStopMerges();
     }
 
     json::Document JsonReader::ProcessRequests(const json::Document& doc,

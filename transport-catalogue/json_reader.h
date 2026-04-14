@@ -112,6 +112,11 @@ namespace tc {
          */
         void LoadBuses(const json::Array& base_requests);
 
+        /**
+         * Загружает объединенные остановки из base_requests в каталог
+         */
+        void LoadStopMerges(const json::Array& base_requests);
+
         // ===================================
         // Формирование JSON-ответов
         // ===================================

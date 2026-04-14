@@ -26,6 +26,10 @@ namespace tc {
         using PairStop = std::pair<const Stop*, const Stop*>;
 
         std::unordered_map<PairStop, double, StopPairHasher> distances_;
+
+        // Для объединения остановок
+        std::vector<domain::StopMergeRequest> pending_merges_;
+        std::unordered_map<std::string_view, std::string> stop_redirect_;  // старая -> новая
     };
 
     TransportCatalogue::TransportCatalogue()
@@ -182,6 +186,12 @@ namespace tc {
             return it->second;
         }
 
+        /// TODO
+        // Если виртуальная остановка - используем географическое расстояние
+        if (from->is_virtual || to->is_virtual) {
+            return ComputeDistance(from->coords, to->coords);
+        }
+
         it = impl_->distances_.find({ to, from });
 
         if (it != impl_->distances_.end()) {
@@ -200,6 +210,9 @@ namespace tc {
 
         impl_->buses_by_stop_.clear();
         impl_->distances_.clear();
+
+        impl_->pending_merges_.clear();
+        impl_->stop_redirect_.clear();
     }
 
     void TransportCatalogue::AccumulateRoute(const Stop* from, const Stop* to, double& road_length, double& geo_length) const {
@@ -207,5 +220,92 @@ namespace tc {
         geo_length += ComputeDistance(from->coords, to->coords);
     }
 
+    // Для объединенных остановок
+
+    void TransportCatalogue::AddStopMergeRequest(const domain::StopMergeRequest& request) {
+        impl_->pending_merges_.push_back(request);
+    }
+
+    void TransportCatalogue::ApplyStopMerges() {
+        for (const auto& req : impl_->pending_merges_) {
+            // Проверяем, что все остановки существуют
+            std::vector<const Stop*> existing_stops;
+            for (const auto& stop_name : req.stops) {
+                const Stop* stop = FindStop(stop_name);
+                if (!stop) {
+                    // Можно выбросить исключение или залогировать
+                    continue;
+                }
+                existing_stops.push_back(stop);
+            }
+
+            if (existing_stops.empty()) continue;
+
+            // Вычисляем среднюю координату если нужно
+            Coordinates avg_coords;
+            if (req.combine_coords) {
+                double sum_lat = 0, sum_lng = 0;
+                for (const auto* stop : existing_stops) {
+                    sum_lat += stop->coords.lat;
+                    sum_lng += stop->coords.lng;
+                }
+                avg_coords.lat = sum_lat / existing_stops.size();
+                avg_coords.lng = sum_lng / existing_stops.size();
+            }
+
+            // Создаем виртуальную остановку
+            std::string virtual_name = req.merged_name;
+            if (virtual_name.empty()) {
+                // Автоматическое создание имени через " / "
+                virtual_name = req.stops[0];
+                for (size_t i = 1; i < req.stops.size(); ++i) {
+                    virtual_name += " / " + req.stops[i];
+                }
+            }
+
+            // Добавляем виртуальную остановку
+            AddStop(virtual_name, avg_coords);
+            const Stop* virtual_stop = FindStop(virtual_name);
+
+            // Настраиваем перенаправление
+            for (const auto* stop : existing_stops) {
+                // Сохраняем информацию о том, что это виртуальная остановка
+                const_cast<Stop*>(virtual_stop)->is_virtual = true;
+                const_cast<Stop*>(virtual_stop)->merged_stops.push_back(stop->name);
+
+                // Перенаправляем старую остановку на новую
+                impl_->stop_redirect_[stop->name] = virtual_name;
+            }
+        }
+
+        // Обновляем маршруты: заменяем старые остановки на виртуальные
+        for (auto& bus : impl_->buses_storage_) {
+            std::vector<const Stop*> new_stops;
+            for (const Stop* stop : bus.stops) {
+                auto it = impl_->stop_redirect_.find(stop->name);
+                if (it != impl_->stop_redirect_.end()) {
+                    // Заменяем на виртуальную остановку
+                    const Stop* virtual_stop = FindStop(it->second);
+                    if (virtual_stop) {
+                        new_stops.push_back(virtual_stop);
+                    } else {
+                        new_stops.push_back(stop);
+                    }
+                } else {
+                    new_stops.push_back(stop);
+                }
+            }
+            // Обновляем указатели (нужен неконстантный доступ)
+            const_cast<Bus*>(&bus)->stops = std::move(new_stops);
+        }
+    }
+
+    const Stop* TransportCatalogue::GetCanonicalStop(std::string_view stop_name) const {
+        auto it = impl_->stop_redirect_.find(stop_name);
+        if (it != impl_->stop_redirect_.end()) {
+            return FindStop(it->second);
+        }
+        return FindStop(stop_name);
+    }
 
 }  // namespace tc

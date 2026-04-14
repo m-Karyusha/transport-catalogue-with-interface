@@ -93,6 +93,21 @@ namespace tc {
          */
         void Clear();
 
+        /**
+         * Обработка запроса на объединение остановок
+         */
+        void AddStopMergeRequest(const domain::StopMergeRequest& request);
+
+        /**
+         * Применение всех объединений
+         */
+        void ApplyStopMerges();
+
+        /**
+         * Получить реальную остановку для отображения (учитывая объединения)
+         */
+        const Stop* GetCanonicalStop(std::string_view stop_name) const;
+
     private:
         struct Impl;
         std::unique_ptr<Impl> impl_;
