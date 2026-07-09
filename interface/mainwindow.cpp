@@ -77,7 +77,7 @@ MainWindow::MainWindow(QWidget* parent)
     ui->setupUi(this);
 
     ui->requestNameLineEdit->setEnabled(true);
-    statusBar()->showMessage("Готово");
+    statusBar()->showMessage("");
 }
 
 MainWindow::~MainWindow() {
@@ -137,6 +137,7 @@ void MainWindow::on_requestTypeComboBox_currentTextChanged(const QString& text) 
     const bool is_map = (text == "Map");
 
     ui->requestNameLineEdit->setEnabled(!is_map);
+    ui->outputFileLineEdit->setEnabled(!is_map);
 
     if (is_map) {
         ui->requestNameLineEdit->clear();

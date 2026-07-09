@@ -70,7 +70,7 @@
       }
     ],
     "render_settings": {
-      "width": 600,
+      "width": 800,
       "height": 400,
       "padding": 50,
       "stop_radius": 5,
